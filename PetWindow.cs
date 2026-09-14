@@ -14,22 +14,32 @@ public sealed class PetWindow : Window {
     readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     readonly Stopwatch clock = Stopwatch.StartNew();
     readonly string settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"MarkDesktopPet","follow.txt");
+    readonly string sizeSettingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"MarkDesktopPet","size.txt");
     List<Native.Rect> areas = new();
     IntPtr handle;
     PetState state;
     double x,y,velocityY,remaining=2,last,refresh,phase;
-    int direction=1,widthPx=140,heightPx=140;
+    int direction=1,widthPx=68,heightPx=70,pixelSize=2;
     bool follow,paused,pressed,moved;
     Native.Point press,offset;
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     public PetWindow() {
-        Width=140; Height=140; WindowStyle=WindowStyle.None; ResizeMode=ResizeMode.NoResize;
+        if(System.IO.File.Exists(sizeSettingsPath) && int.TryParse(System.IO.File.ReadAllText(sizeSettingsPath), out int s) && s >= 1 && s <= 4)
+            pixelSize = s;
+        drawing.PixelSize = pixelSize;
+        Width=34*pixelSize; Height=35*pixelSize; WindowStyle=WindowStyle.None; ResizeMode=ResizeMode.NoResize;
         AllowsTransparency=true; Background=Brushes.Transparent; Topmost=true; ShowInTaskbar=false; ShowActivated=false;
         Content=drawing;
         follow=System.IO.File.Exists(settingsPath) && System.IO.File.ReadAllText(settingsPath)=="true";
         var menu = new ContextMenu();
         Add(menu,"Follow mouse",()=> { follow=!follow; Save(); },()=>follow);
         Add(menu,"Pause",()=>paused=!paused,()=>paused);
+        var sizeMenu = new MenuItem { Header="Size" };
+        AddSize(sizeMenu,"Small (56px)",2);
+        AddSize(sizeMenu,"Medium (84px)",3);
+        AddSize(sizeMenu,"Large (112px)",4);
+        AddSize(sizeMenu,"Tiny (28px)",1);
+        menu.Items.Add(sizeMenu);
         Add(menu,"Jump",()=>Set(PetState.Jump));
         Add(menu,"Sit",()=>Set(PetState.Sit,6));
         Add(menu,"Sleep",()=>Set(PetState.Sleep,12));
@@ -57,7 +67,42 @@ public sealed class PetWindow : Window {
         item.Click+=(_,_)=> { try { action(); } catch(Exception e) { MessageBox.Show(e.Message,"Desktop Pet"); } };
         menu.Items.Add(item);
     }
-    void Save() { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(settingsPath)!); System.IO.File.WriteAllText(settingsPath,follow?"true":"false"); }
+    void AddSize(MenuItem parent, string label, int s) {
+        var item = new MenuItem { Header = label, IsCheckable = true };
+        parent.SubmenuOpened += (_, _) => item.IsChecked = (pixelSize == s);
+        item.Click += (_, _) => {
+            SetSize(s);
+            foreach (var child in parent.Items) {
+                if (child is MenuItem mi) mi.IsChecked = (mi == item);
+            }
+        };
+        parent.Items.Add(item);
+    }
+    void SetSize(int s) {
+        if (s < 1 || s > 4) return;
+        pixelSize = s;
+        drawing.PixelSize = s;
+        Width = 34 * s;
+        Height = 35 * s;
+        UpdateLayout();
+        if (handle != IntPtr.Zero) {
+            Native.GetWindowRect(handle, out var rect);
+            widthPx = rect.Right - rect.Left;
+            heightPx = rect.Bottom - rect.Top;
+            var a = Nearest(x + widthPx / 2, y + heightPx / 2);
+            if (state != PetState.Jump && state != PetState.Drag) {
+                y = a.Bottom - heightPx;
+            }
+            Clamp();
+            Place();
+        }
+        Save();
+    }
+    void Save() {
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(settingsPath)!);
+        System.IO.File.WriteAllText(settingsPath,follow?"true":"false");
+        System.IO.File.WriteAllText(sizeSettingsPath,pixelSize.ToString());
+    }
     bool StartupEnabled() { using var key=Registry.CurrentUser.OpenSubKey(RunKey); return key?.GetValue("MarkDesktopPet")!=null; }
     void ToggleStartup() {
         using var key=Registry.CurrentUser.CreateSubKey(RunKey);
@@ -78,7 +123,7 @@ public sealed class PetWindow : Window {
     }
     void Set(PetState next,double seconds=0) {
         state=next; remaining=seconds>0?seconds:2+random.NextDouble()*4;
-        if(next==PetState.Jump) { velocityY=-450; remaining=3; }
+        if(next==PetState.Jump) { velocityY=-(250+50*pixelSize); remaining=3; }
     }
     void Down(object sender,MouseButtonEventArgs e) {
         Native.GetCursorPos(out press); offset=new Native.Point { X=press.X-(int)x,Y=press.Y-(int)y };
@@ -110,13 +155,14 @@ public sealed class PetWindow : Window {
         }
         if(follow && state!=PetState.Jump && state!=PetState.React) {
             double distance=mouse.X-(x+widthPx/2);
-            if(Math.Abs(distance)>35 || Nearest(mouse.X,mouse.Y).Left!=Nearest(x,y).Left) { state=PetState.Walking; direction=distance>=0?1:-1; }
+            double threshold = Math.Max(20, widthPx * 0.25);
+            if(Math.Abs(distance)>threshold || Nearest(mouse.X,mouse.Y).Left!=Nearest(x,y).Left) { state=PetState.Walking; direction=distance>=0?1:-1; }
             else if(state==PetState.Walking) Set(PetState.Idle);
         }
         var area=Nearest(x+widthPx/2,y+heightPx/2);
         double ground=area.Bottom-heightPx;
         if(state==PetState.Walking) {
-            double nx=x+direction*90*dt;
+            double nx=x+direction*(60+7.5*pixelSize)*dt;
             if(nx<area.Left||nx+widthPx>area.Right) {
                 // Traverse touching horizontal monitors; disconnected layouts use the menu.
                 var neighbors=areas.Where(a=> direction>0 ? Math.Abs(a.Left-area.Right)<=2 : Math.Abs(a.Right-area.Left)<=2).ToList();

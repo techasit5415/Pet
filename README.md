@@ -14,7 +14,7 @@
 - Idle → สุ่มเดินซ้าย/ขวา กระโดด นั่ง หรือนอน; เดินมีเท้าสลับ ตัวเด้ง และกะพริบตา
 - คลิกซ้ายแสดงหัวใจ; กดแล้วลากเกิน 5 pixels เพื่อลากตัวละคร; ปล่อยแล้วตกลงพื้น
 - Follow mouse เปิด/ปิดผ่านคลิกขวาและจำค่าไว้ ตัวเคอร์บี้เดินตามแนวนอน ไม่บินตามตำแหน่ง Y ของเมาส์
-- Pause, Jump, Sit, Sleep, Move to next monitor และ Exit อยู่ในเมนู
+- Pause, Jump, Sit, Sleep, Move to next monitor, Size (เลือกขนาดตัวละคร: Tiny 28px, Small 56px, Medium 84px, Large 112px) และ Exit อยู่ในเมนู
 - ข้ามจออัตโนมัติเมื่อจอวางติดกันในแนวนอน; จอแนวตั้งหรือมีช่องว่าง ใช้ลากหรือ Move to next monitor
 - ขอบเขตใช้ work area ของแต่ละจอ เพื่อเว้น Taskbar ที่ Windows จองไว้ อัปเดตทุกวินาทีเมื่อเปลี่ยนจอ/Taskbar
 - Start with Windows เป็นตัวเลือกในเมนู เปิดจาก EXE หลัง publish ก่อนใช้งาน ตัวเลือกนี้เพิ่ม/ลบเฉพาะค่า MarkDesktopPet ใน HKCU Run ของผู้ใช้ปัจจุบัน ไม่ต้องเป็น Administrator
@@ -25,7 +25,7 @@
 
 - App.cs: จุดเริ่มต้นและ single instance
 - Native.cs: Windows monitor, cursor และ window positioning API
-- PetWindow.cs: state machine, physics, mouse, เมนู, startup
+- PetWindow.cs: state machine, physics, mouse, เมนู, startup, การปรับขนาด (Size)
 - PetDrawing.cs: รูปและ animation ปรับตรงนี้เพื่อเปลี่ยนตัวละคร
 
 ## ข้อจำกัดและการตรวจสอบ
@@ -41,6 +41,7 @@ Always-on-top อาจมองไม่เห็นในเกม fullscreen 
 
 - `dotnet build` ผ่าน; `run.bat` เปิดหน้าต่างโปร่งใสและเดิน/กระโดดได้
 - คลิกแล้วมีหัวใจ; ลากแล้วไม่ทะลุ Taskbar; ปล่อยแล้วลงพื้น; Pause หยุดและ Resume เดินต่อ
+- ปรับขนาดผ่านคลิกขวา -> Size เลือกขนาด Small (56px), Medium (84px), Large (112px) หรือ Tiny (28px) ได้ทันที
 - เปิด Follow mouse แล้วเดินตาม X; ทดสอบสองจอรวมจอที่มีพิกัดติดลบและ scale ต่างกัน
 - ถอดจอแล้วเคอร์บี้กลับมาอยู่จอที่เหลือ; ย้าย Taskbar แล้วเคอร์บี้ยังอยู่ใน work area
 - Publish แล้วเปิด EXE; เปิด startup และตรวจหลัง sign out/sign in; ปิด startup แล้วรายการหาย
@@ -53,10 +54,10 @@ Always-on-top อาจมองไม่เห็นในเกม fullscreen 
 แก้ `PetDrawing.cs` เท่านั้น ระบบการเดิน/ลากยังอยู่ใน `PetWindow.cs`
 
 - `Palette`: สีชมพู เงา รองเท้า ขอบ และดวงตา
-- `PixelSize = 4`: แต่ละ pixel เป็นสี่เหลี่ยมขนาด 4 WPF units
+- `PixelSize`: แต่ละ pixel เป็นสี่เหลี่ยมขนาด WPF units (เริ่มต้นที่ 2 = 56px สไตล์ Desktop Pet ทั่วไป หรือเลือกเปลี่ยนขนาดได้จากเมนูคลิกขวา)
 - `Oval` และ `Box`: วาดร่างกาย/เท้า/ตาเป็นช่องพิกเซล ไม่ใช้วงรีแบบลื่น
 - `OnRender`: เลือกท่านอน นั่ง เดิน กระโดด reaction และลาก ตาม state
 - `RenderOptions.SetEdgeMode(..., EdgeMode.Aliased)`: ให้ขอบพิกเซลคม
 
-ภาพนี้วาดใหม่ในโค้ดโดยได้แรงบันดาลใจจากเคอร์บี้ ไม่ใช่ sprite ที่ดึงจากเกม หากปรับ PixelSize ต้องปรับขนาดหน้าต่างและจุดกึ่งกลางการกลับซ้าย/ขวาด้วย
+ภาพนี้วาดใหม่ในโค้ดโดยได้แรงบันดาลใจจากเคอร์บี้ ไม่ใช่ sprite ที่ดึงจากเกม
 หลังแก้ไฟล์ ให้ปิดโปรแกรมแล้วเปิด run.bat ใหม่ หรือ publish.bat ใหม่หากใช้ EXE

@@ -8,7 +8,12 @@ sealed class PetDrawing : FrameworkElement {
     PetState state;
     double phase;
     int direction=1;
-    const int Grid=28, PixelSize=4;
+    const int Grid=28;
+    int pixelSize=2;
+    internal int PixelSize {
+        get => pixelSize;
+        set { pixelSize = Math.Clamp(value, 1, 8); InvalidateVisual(); }
+    }
     static readonly Dictionary<char,Brush> Palette = new() {
         ['o']=Frozen(74,35,64),     // outline
         ['p']=Frozen(255,155,198), // pink body
@@ -76,11 +81,15 @@ sealed class PetDrawing : FrameworkElement {
             }
             if(state==PetState.Drag) { Box(23,1,2,4,'w'); Box(23,6,2,1,'w'); }
         }
-        dc.PushTransform(new ScaleTransform(direction,1,70,70));
+        int p = pixelSize;
+        double offsetX = 3 * p;
+        double offsetY = 6 * p;
+        double centerX = 17 * p;
+        dc.PushTransform(new ScaleTransform(direction,1,centerX,0));
         // Transparent cells are not drawn, so desktop clicks pass through them.
         for(int yy=0;yy<Grid;yy++)for(int xx=0;xx<Grid;xx++) {
             if(Palette.TryGetValue(pixels[xx,yy],out var brush))
-                dc.DrawRectangle(brush,null,new Rect(14+xx*PixelSize,24+yy*PixelSize,PixelSize,PixelSize));
+                dc.DrawRectangle(brush,null,new Rect(offsetX+xx*p,offsetY+yy*p,p,p));
         }
         dc.Pop();
     }
