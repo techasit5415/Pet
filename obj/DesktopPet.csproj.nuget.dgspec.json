@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\techa\\Downloads\\DesktopPet-Windows\\DesktopPet\\DesktopPet.csproj": {}
+    "C:\\Users\\techa\\Downloads\\Pet\\DesktopPet.csproj": {}
   },
   "projects": {
-    "C:\\Users\\techa\\Downloads\\DesktopPet-Windows\\DesktopPet\\DesktopPet.csproj": {
+    "C:\\Users\\techa\\Downloads\\Pet\\DesktopPet.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\techa\\Downloads\\DesktopPet-Windows\\DesktopPet\\DesktopPet.csproj",
+        "projectUniqueName": "C:\\Users\\techa\\Downloads\\Pet\\DesktopPet.csproj",
         "projectName": "DesktopPet",
-        "projectPath": "C:\\Users\\techa\\Downloads\\DesktopPet-Windows\\DesktopPet\\DesktopPet.csproj",
+        "projectPath": "C:\\Users\\techa\\Downloads\\Pet\\DesktopPet.csproj",
         "packagesPath": "C:\\Users\\techa\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\techa\\Downloads\\DesktopPet-Windows\\DesktopPet\\obj\\",
+        "outputPath": "C:\\Users\\techa\\Downloads\\Pet\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\techa\\AppData\\Roaming\\NuGet\\NuGet.Config"

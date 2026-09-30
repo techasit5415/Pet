@@ -1,96 +1,126 @@
 using System.Windows;
 using System.Windows.Media;
+
 namespace DesktopPet;
 
-// Original Kirby-inspired pixel artwork. Each cell is one logical pixel.
-// Keep drawing in whole grid coordinates to preserve the retro look.
+// Pixel colors and silhouette are sampled from the reference image. Spaces are
+// transparent; the black cells inside the eyes are filled explicitly below.
 sealed class PetDrawing : FrameworkElement {
+    const int SpriteWidth = 19;
+    const int SpriteHeight = 16;
+    static readonly string[] Sprite = {
+        "       ebbe        ",
+        "     idaaaadb      ",
+        "    daaaaaaaadg    ",
+        "   iaaaaebaeiad    ",
+        "   aaaaawgawgaae   ",
+        "  iaaaaae ab aab   ",
+        " badaaaab ad aad   ",
+        "gaaaaabbd aa bdadg ",
+        "aaaaaaaaaaaaaaadda ",
+        "cadcdaaaaaaeaaadcc ",
+        "eccccdaaaaaaaaahhg ",
+        "  ghccdaaaaaaaaeg  ",
+        "  ffhcccdddccche   ",
+        " bwbbbhccccccebbb  ",
+        "ebbbbbfhccchefbbbg ",
+        "effffffe  eeeffffg "
+    };
+    static readonly Dictionary<char, Brush> Palette = new() {
+        ['a'] = Frozen(255, 168, 232), // body
+        ['b'] = Frozen(232, 60, 123),  // bright shoes and accents
+        ['c'] = Frozen(217, 102, 144), // lower body shadow
+        ['d'] = Frozen(240, 139, 178), // soft edge shadow
+        ['e'] = Frozen(168, 24, 38),   // dark red
+        ['f'] = Frozen(194, 25, 87),   // shoe shadow
+        ['g'] = Frozen(87, 0, 9),      // deepest red
+        ['h'] = Frozen(207, 67, 118),  // pink shadow
+        ['i'] = Frozen(255, 122, 169), // light pink accent
+        ['w'] = Frozen(255, 255, 255), // eye and shoe shine
+        ['k'] = Frozen(0, 0, 0)        // eye pupil
+    };
+
     PetState state;
     double phase;
-    int direction=1;
-    const int Grid=28;
-    int pixelSize=2;
+    int direction = 1;
+    int pixelSize = 2;
+
     internal int PixelSize {
         get => pixelSize;
         set { pixelSize = Math.Clamp(value, 1, 8); InvalidateVisual(); }
     }
-    static readonly Dictionary<char,Brush> Palette = new() {
-        ['o']=Frozen(74,35,64),     // outline
-        ['p']=Frozen(255,155,198), // pink body
-        ['s']=Frozen(233,104,164), // shadow / cheeks
-        ['h']=Frozen(255,200,221), // highlight
-        ['r']=Frozen(222,43,87),   // red shoes
-        ['b']=Frozen(52,69,131),   // blue eyes
-        ['w']=Frozen(255,246,250)  // eye highlight
-    };
-    static Brush Frozen(byte r,byte g,byte b) {
-        var brush=new SolidColorBrush(Color.FromRgb(r,g,b)); brush.Freeze(); return brush;
+
+    static Brush Frozen(byte r, byte g, byte b) {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
     }
-    public PetDrawing() { RenderOptions.SetEdgeMode(this,EdgeMode.Aliased); }
-    internal void Update(PetState s,double p,int d) { state=s; phase=p; direction=d; InvalidateVisual(); }
+
+    public PetDrawing() => RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+
+    internal void Update(PetState s, double p, int d) {
+        state = s;
+        phase = p;
+        direction = d;
+        InvalidateVisual();
+    }
+
     protected override void OnRender(DrawingContext dc) {
         base.OnRender(dc);
-        var pixels=new char[Grid,Grid];
-        void Put(int x,int y,char c) { if(x>=0&&x<Grid&&y>=0&&y<Grid)pixels[x,y]=c; }
-        void Box(int x,int y,int w,int h,char c) {
-            for(int yy=y;yy<y+h;yy++)for(int xx=x;xx<x+w;xx++)Put(xx,yy,c);
-        }
-        void Oval(int cx,int cy,int rx,int ry,char fill) {
-            bool Inside(int x,int y)=> (x-cx)*(x-cx)/(double)(rx*rx)+(y-cy)*(y-cy)/(double)(ry*ry)<=1;
-            for(int yy=cy-ry;yy<=cy+ry;yy++)for(int xx=cx-rx;xx<=cx+rx;xx++) {
-                if(!Inside(xx,yy))continue;
-                bool border=!Inside(xx-1,yy)||!Inside(xx+1,yy)||!Inside(xx,yy-1)||!Inside(xx,yy+1);
-                Put(xx,yy,border?'o':fill);
+
+        double cell = pixelSize * 1.5;
+        double originX = Math.Round((34 * pixelSize - SpriteWidth * cell) / 2);
+        double originY = 35 * pixelSize - SpriteHeight * cell;
+        int visibleRows = state == PetState.Sleep ? 10 : state == PetState.Sit ? 13 : SpriteHeight;
+        originY += (SpriteHeight - visibleRows) * cell;
+        if (state == PetState.Walking && Math.Sin(phase * 12) > 0.5) originY -= cell;
+        if (state == PetState.React) originY -= Math.Abs(Math.Sin(phase * 10)) > 0.6 ? cell : 0;
+
+        double centerX = 17 * pixelSize;
+        dc.PushTransform(new ScaleTransform(direction, 1, centerX, 0));
+
+        bool blink = state == PetState.Sleep || state == PetState.React || (int)(phase * 10) % 47 == 0;
+        bool leftStep = (int)(phase * 8) % 2 == 0;
+        for (int pass = 0; pass < 2; pass++) {
+            for (int y = 0; y < visibleRows; y++) {
+                int sourceY = y * (SpriteHeight - 1) / (visibleRows - 1);
+                for (int x = 0; x < SpriteWidth; x++) {
+                    char color = Sprite[sourceY][x];
+                    if ((x == 9 || x == 12) && sourceY >= 5 && sourceY <= 7) color = 'k';
+                    if (blink && x >= 8 && x <= 12 && sourceY >= 3 && sourceY <= 7)
+                        color = sourceY == 5 && (x == 8 || x == 9 || x == 11 || x == 12) ? 'e' : 'a';
+                    bool shoe = sourceY >= 13 && (x <= 7 || x >= 10) && "befgw".Contains(color);
+                    if (shoe != (pass == 1) || !Palette.TryGetValue(color, out var brush)) continue;
+                    int lift = state == PetState.Walking && shoe && (x <= 7) == leftStep ? 1 : 0;
+                    dc.DrawRectangle(brush, null, new Rect(originX + x * cell, originY + (y - lift) * cell, cell, cell));
+                }
             }
         }
-        int bob=state==PetState.Walking?(int)Math.Round(Math.Sin(phase*12)):0;
-        if(state==PetState.React)bob=-(int)Math.Round(Math.Abs(Math.Sin(phase*10))*2);
-        if(state==PetState.Sleep) {
-            Oval(14,25,9,2,'r');
-            Oval(14,22,11,4,'p');
-            Box(7,20,5,1,'h');
-            Box(10,22,3,1,'o'); Box(17,22,3,1,'o');
-            Box(8,24,2,1,'s'); Box(21,24,2,1,'s');
-            // Pixel Z, animated without font smoothing.
-            int zy=((int)(phase*2)%2);
-            Box(20,4+zy,5,1,'w'); Put(23,5+zy,'w'); Put(22,6+zy,'w'); Put(21,7+zy,'w'); Box(20,8+zy,5,1,'w');
-        } else {
-            bool sitting=state==PetState.Sit;
-            int cy=(sitting?18:16)+bob;
-            int step=state==PetState.Walking?((int)(phase*8)%2==0?1:-1):0;
-            int footY=state==PetState.Jump?24:25;
-            Oval(9-step,footY-Math.Max(0,step),5,2,'r');
-            Oval(19+step,footY-Math.Max(0,-step),5,2,'r');
-            Oval(4,cy+2,3,3,'p');
-            Oval(24,cy+(state==PetState.React||state==PetState.Drag?-4:1),3,3,'p');
-            Oval(14,cy,10,sitting?7:9,'p');
-            Box(8,cy-5,4,1,'h'); Box(7,cy-4,2,1,'h');
-            Box(9,cy+6,10,1,'s');
-            bool blink=((int)(phase*10)%47==0)||state==PetState.React;
-            if(blink) { Box(11,cy-2,2,1,'o'); Box(17,cy-2,2,1,'o'); }
-            else {
-                Box(11,cy-4,2,5,'o'); Box(17,cy-4,2,5,'o');
-                Put(11,cy-4,'w'); Put(17,cy-4,'w');
-                Put(12,cy,'b'); Put(18,cy,'b');
-            }
-            Box(7,cy+1,3,1,'s'); Box(20,cy+1,3,1,'s');
-            if(state==PetState.React) { Box(14,cy+2,3,2,'o'); Box(14,cy+3,3,1,'r'); }
-            else { Put(14,cy+2,'o'); Put(16,cy+2,'o'); Put(15,cy+3,'o'); }
-            if(state==PetState.React) {
-                Box(21,1,2,1,'r'); Box(25,1,2,1,'r'); Box(20,2,8,2,'r'); Box(21,4,6,1,'r'); Box(22,5,4,1,'r'); Box(23,6,2,1,'r');
-            }
-            if(state==PetState.Drag) { Box(23,1,2,4,'w'); Box(23,6,2,1,'w'); }
+
+        if (state == PetState.React) {
+            // A small pixel heart appears above the raised right hand.
+            Pixel(dc, originX, originY, cell, 15, -4, 'b');
+            Pixel(dc, originX, originY, cell, 17, -4, 'b');
+            for (int x = 14; x <= 18; x++) Pixel(dc, originX, originY, cell, x, -3, 'b');
+            for (int x = 15; x <= 17; x++) Pixel(dc, originX, originY, cell, x, -2, 'b');
+            Pixel(dc, originX, originY, cell, 16, -1, 'b');
+        } else if (state == PetState.Drag) {
+            Pixel(dc, originX, originY, cell, 17, -3, 'w');
+            Pixel(dc, originX, originY, cell, 17, -2, 'w');
+            Pixel(dc, originX, originY, cell, 17, -1, 'w');
+        } else if (state == PetState.Sleep) {
+            int floatY = (int)(phase * 2) % 2;
+            Pixel(dc, originX, originY, cell, 16, -5 - floatY, 'w');
+            Pixel(dc, originX, originY, cell, 17, -5 - floatY, 'w');
+            Pixel(dc, originX, originY, cell, 17, -4 - floatY, 'w');
+            Pixel(dc, originX, originY, cell, 16, -3 - floatY, 'w');
+            Pixel(dc, originX, originY, cell, 16, -2 - floatY, 'w');
+            Pixel(dc, originX, originY, cell, 17, -2 - floatY, 'w');
         }
-        int p = pixelSize;
-        double offsetX = 3 * p;
-        double offsetY = 6 * p;
-        double centerX = 17 * p;
-        dc.PushTransform(new ScaleTransform(direction,1,centerX,0));
-        // Transparent cells are not drawn, so desktop clicks pass through them.
-        for(int yy=0;yy<Grid;yy++)for(int xx=0;xx<Grid;xx++) {
-            if(Palette.TryGetValue(pixels[xx,yy],out var brush))
-                dc.DrawRectangle(brush,null,new Rect(offsetX+xx*p,offsetY+yy*p,p,p));
-        }
+
         dc.Pop();
     }
+
+    static void Pixel(DrawingContext dc, double ox, double oy, double size, int x, int y, char color) =>
+        dc.DrawRectangle(Palette[color], null, new Rect(ox + x * size, oy + y * size, size, size));
 }
