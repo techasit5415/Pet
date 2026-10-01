@@ -1,0 +1,5 @@
+$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=DesktopPetDev" -CertStoreLocation "Cert:\CurrentUser\My"
+Set-AuthenticodeSignature -Certificate $cert -FilePath "C:\Users\techa\Downloads\Pet\bin\Debug\net8.0-windows\DesktopPet.dll"
+Set-AuthenticodeSignature -Certificate $cert -FilePath "C:\Users\techa\Downloads\Pet\bin\Debug\net8.0-windows\DesktopPet.exe"
+Set-AuthenticodeSignature -Certificate $cert -FilePath "C:\Users\techa\Downloads\Pet\publish\DesktopPet.exe"
+Write-Output "Signed all binaries successfully"
