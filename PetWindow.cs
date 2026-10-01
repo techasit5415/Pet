@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 namespace DesktopPet;
-enum PetState { Idle, Walking, Jump, Sit, Sleep, React, Drag }
+enum PetState { Idle, Walking, Jump, Sit, Sleep, Inhale, React, Drag }
 public sealed class PetWindow : Window {
     readonly PetDrawing drawing = new();
     readonly Random random = new();
@@ -43,6 +43,7 @@ public sealed class PetWindow : Window {
         Add(menu,"Jump",()=>Set(PetState.Jump));
         Add(menu,"Sit",()=>Set(PetState.Sit,6));
         Add(menu,"Sleep",()=>Set(PetState.Sleep,12));
+        Add(menu,"Inhale",()=>Set(PetState.Inhale,4));
         Add(menu,"Move to next monitor",NextMonitor);
         Add(menu,"Start with Windows",ToggleStartup,StartupEnabled);
         Add(menu,"Exit",Close);
@@ -150,10 +151,10 @@ public sealed class PetWindow : Window {
         phase+=dt; remaining-=dt;
         Native.GetCursorPos(out var mouse);
         if(remaining<=0&&state!=PetState.Jump) {
-            var choices=new[] { PetState.Idle,PetState.Walking,PetState.Walking,PetState.Jump,PetState.Sit,PetState.Sleep };
+            var choices=new[] { PetState.Idle,PetState.Walking,PetState.Walking,PetState.Jump,PetState.Sit,PetState.Sleep,PetState.Inhale };
             direction=random.Next(2)==0?-1:1; Set(choices[random.Next(choices.Length)]);
         }
-        if(follow && state!=PetState.Jump && state!=PetState.React) {
+        if(follow && state!=PetState.Jump && state!=PetState.React && state!=PetState.Inhale) {
             double distance=mouse.X-(x+widthPx/2);
             double threshold = Math.Max(20, widthPx * 0.25);
             if(Math.Abs(distance)>threshold || Nearest(mouse.X,mouse.Y).Left!=Nearest(x,y).Left) { state=PetState.Walking; direction=distance>=0?1:-1; }

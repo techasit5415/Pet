@@ -1,0 +1,7 @@
+# Generated .NET builds and published app
+/bin/
+/obj/
+/publish/
+
+# Executables placed elsewhere in the repository
+*.exe
